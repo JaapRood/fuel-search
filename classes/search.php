@@ -2,8 +2,13 @@
 
 namespace Search;
 
+use FuelException;
+
 class Search {
 	
+	protected static function find($search_term = '') {
+		return new static($search_term);
+	}
 	
 	/**
     * Calculate the distance between $word and $search_term based on the Damerau-Levenshtein algorithm.
@@ -16,6 +21,7 @@ class Search {
     * @param	int		$cost_limit		The maximum cost we are looking for (so we can break early on words with higher costs)
     * @return	int						The distance between $word and $search_term
     *
+    * @todo		incorporate the prefix and suffix matching into the score (to get more relevant results)
     * @todo		reformat and comment to make sure everyone can see what does what and why
     */
 	protected static function get_score($word, $search_term, $cost_limit) {
@@ -91,5 +97,22 @@ class Search {
 			}
 		}
 		return $matrix[$len1][$len2];
+	}
+	
+	protected $search_term = null;
+	protected $search_data = null;
+	
+	public function __construct($search_term = '') {
+		if (!is_string($search_term)) throw new FuelException('The search term must be a string');
+		
+		
+	}
+	
+	public function in($data) {
+		
+	}
+	
+	public function execute() {
+		
 	}
 }
