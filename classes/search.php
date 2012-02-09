@@ -1,4 +1,16 @@
 <?php
+/**
+ * Search
+ *
+ * Search lets you search for stuff in data, allowing spelling mistakes!
+ *
+ * @package		Search
+ * @version		0.5
+ * @author		Jaap Rood / Ronald Mansveld
+ * @license		MIT License
+ * @link		http://github.com/JaapRood/fuel-search
+ */
+
 
 namespace Search;
 
@@ -14,6 +26,7 @@ class Search {
     * Calculate the distance between $word and $search_term based on the Damerau-Levenshtein algorithm.
     *
     * Credits for this algorithm implementation go out to Ronald Mansveld, who worked hard to make it efficient
+    * while creating useful results
     * @author 	Ronald Mansveld
     * 
     * @param	string	$word			The word to check
@@ -101,18 +114,31 @@ class Search {
 	
 	protected $search_term = null;
 	protected $search_data = null;
+	protected $search_relevance = 75;
 	
 	public function __construct($search_term = '') {
 		if (!is_string($search_term)) throw new FuelException('The search term must be a string');
 		
-		
+		return $this;
 	}
 	
 	public function in($data) {
 		
+		return $this;
+	}
+	
+	public function limit($limit) {
+		
+		return $this;
+	}
+	
+	public function relevance($relevance) {
+		
+		return $this;
 	}
 	
 	public function execute() {
 		
+		return $this;
 	}
 }
