@@ -18,9 +18,185 @@ use FuelException;
 
 class Search {
 	
+	protected $term = null;
+	protected $data = null;
+	protected $fields = null;
+	protected $relevance = 75;
+	protected $limit = null;
+	
+	private $_normalized_data = array(); // normalized data that's being used to perform the actual algorithms on
+	private $_words = array(); 
+	
 	protected static function find($search_term = '') {
 		return new static($search_term);
 	}
+	
+	public function __construct($search_term = '') {
+		if (!is_string($search_term)) throw new InvalidArgumentException('The search term must be a string');
+		
+		$this->term = strtolower($search_term);
+		
+		return $this;
+	}
+	
+	
+	/**
+	 * The data you want to search in. Accepts an array of arrays and an array
+	 * of objects.
+	 *
+	 * @param	mixed	$data	The data to search through. An array of arrays, or an array of objects
+	 * @return 	$this	
+	 */
+	public function in($data) {
+		if (!is_array($data)) {
+			throw new InvalidArgumentException('Search only accepts an array of arrays, or an array of objects');
+		}
+		
+		// lets make sure this is data we can search through, before we waste resources on trying
+		foreach ($data as $key => $value) {
+			if (!is_object($value) && !is_array($value)) {
+				throw new InvalidArgumentException('Search only accepts an array of arrays, or an array of objects');
+			}
+		}
+		
+		$this->data = $data;
+		$this->_normalized_data = \Format::forge($data)->to_array();
+		
+		return $this;
+	}
+	
+	/**
+	 * The fields of the data entries you wan't to look into for the search term
+	 *
+	 * @param 	mixed	either an array of fields or a variable amount of strings
+	 * @return 	$this
+	 */
+	public function by($fields = null) {
+		if (!is_array($fields)) $fields = func_get_args();
+		
+		$this->fields = array_merge($this->fields, $fields);
+		array_unique($this->fields);
+		
+		return $this;
+	}
+	
+	/**
+	 * Limit the amount of the results you'll get back
+	 * @param 	int		$limit	the limit of results you want to get back
+	 * @return 	$this
+	 */
+	public function limit($limit) {
+		$this->limit = (int) $limit;
+		
+		return $this;
+	}
+	
+	/**
+	 * Determine how well the results should relate to the searchterm by percentage.
+	 * With a relevance of 50% using a 8 letter search term, results are included that
+	 * need 4 transformations or less to get to the search term.
+	 *
+	 * @param	int		$relevance	percentage (0-100) of relevancy
+	 * @return	$this
+	 */
+	public function relevance($relevance) {
+		$relevance = (int) $relevance;
+		
+		if ($relevance > 100) $relevance = 100;
+		if ($relevance < 1) $relevance = 1;
+		
+		$this->relevance = $relevance;
+		
+		return $this;
+	}
+	
+	
+	/**
+	 * Executes the search that's been built. It retrieves the words out of the
+	 * specified fields from the data. It then generates a score for each one of them,
+	 * excludes the ones with a too low of a score and sort the results to return the data.
+	 *
+	 * @return	array	The search results
+	 */
+	public function execute() {
+		if (empty($this->data)) { // if there is no data to work with
+			return array(); // searching in nothing leads to nothing
+		}
+		
+		$search_term = $this->search_term;
+		$search_term_length = strlen($search_term);
+		$relevance = $this->search_relevance;
+		
+		$cost_limit = (int) ceil( ($search_term_length * (100-$relevance) ) / 100);
+		$search_term_minlen = $search_term_length - $cost_limit; // anything that's the cost limit longer that search term, will score too low for sure
+		$search_term_maxlen = $search_term_length + $cost_limit; // anything that's the cost limit longer that search term, will score too high for sure
+		
+		
+		$this->get_words($search_term_minlen, $search_term_maxlen);
+		
+		$results = array(); // array of entry_key => score
+		foreach ($this->_words as $word => $entries) {
+			$score = $this->get_word_score($word, $search_term, $cost_limit + 1);
+			
+			if ($score <= $cost_limit) { // if this word scores within our cost limit
+				foreach ($entries as $entry) {
+					if (!isset($results[$entry['key']]) || (isset($results[$entry['key']]) && $results[$entry['key']] > $score)) { // if his entries score improved
+						$results[$entry['key']] = $score;
+					}
+				}
+			}
+		}
+		
+		// TODO: return the resulting array in the right format and sorted by score
+		
+		return $this;
+	}
+	
+	
+	/**
+	 * Get's all the words from the specified fields in the data. they will be set
+	 * with a reference to the data it belongs to so it can be linked back
+	 *
+	 * @param	int		the minimal length the returned words should be
+	 * @param	int		the maximal length the returned words should be
+	 * @return	void
+	 */
+	protected function get_words($min_length, $max_length) {
+		if (empty($this->_normalized_data) || empty($this->fields)) return array();
+		
+		$this->_words = array();
+		
+		foreach ($this->_normalized_data as $entry_key => $entry) {
+			$words_in_entry = array();
+			
+			foreach ($this->fields as $field) {
+				if (!array_key_exists($field, $entry)) continue; // if the field is not set in this entry, there is not much to find!
+				
+				$field_contents = $entry[$field];
+				$field_words = explode(' ', $field_contents);
+				
+				foreach ($field_words as $word) {
+					$word = strtolower($word);
+					
+					if (isset($words_in_entry[$word])) continue; // if we already found this word in this entry, we don't need it again
+					
+					$word_length = strlen($word);
+					if ($word_length >= $min_length && $word_length <= $min_length) {
+						if (!isset($words[$word])) $words[$word] = array(); // add the word if it doesnt exist yet
+					}
+					
+					$this->_words[$word][] = array('key' => $entry_key);
+				}
+				
+				$words_in_entry[$word] = true; // mark this word as done for this entry
+			}
+		}
+	}
+	
+	/**
+	 * Determine the scores per entry. With multiple matching words, the best score goes
+	 */
+	
 	
 	/**
     * Calculate the distance between $word and $search_term based on the Damerau-Levenshtein algorithm.
@@ -30,14 +206,14 @@ class Search {
     * @author 	Ronald Mansveld
     * 
     * @param	string	$word			The word to check
-    * @param	string	$searchterm		The searchterm to check word against
+    * @param	string	$search_term		The searchterm to check word against
     * @param	int		$cost_limit		The maximum cost we are looking for (so we can break early on words with higher costs)
     * @return	int						The distance between $word and $search_term
     *
     * @todo		incorporate the prefix and suffix matching into the score (to get more relevant results)
     * @todo		reformat and comment to make sure everyone can see what does what and why
     */
-	protected static function get_score($word, $search_term, $cost_limit) {
+	protected static function get_word_score($word, $search_term, $cost_limit) {
 		if ($word == $searchterm) return 0;
       
 		$len1 = strlen($word);
@@ -110,35 +286,5 @@ class Search {
 			}
 		}
 		return $matrix[$len1][$len2];
-	}
-	
-	protected $search_term = null;
-	protected $search_data = null;
-	protected $search_relevance = 75;
-	
-	public function __construct($search_term = '') {
-		if (!is_string($search_term)) throw new FuelException('The search term must be a string');
-		
-		return $this;
-	}
-	
-	public function in($data) {
-		
-		return $this;
-	}
-	
-	public function limit($limit) {
-		
-		return $this;
-	}
-	
-	public function relevance($relevance) {
-		
-		return $this;
-	}
-	
-	public function execute() {
-		
-		return $this;
 	}
 }
