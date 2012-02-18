@@ -21,6 +21,7 @@ class Search {
 	protected $fields = array();
 	protected $relevance = 75;
 	protected $limit = null;
+	protected $offset = null;
 	
 	private $_words = array(); 
 	
@@ -90,6 +91,17 @@ class Search {
 	}
 	
 	/**
+	 * offset the results you'll get back
+	 * @param 	int		$offset	the offset from which you want results back
+	 * @return 	$this
+	 */
+	public function offset($offset) {
+		$this->offset = (int) $offset;
+		
+		return $this;
+	}
+	
+	/**
 	 * Determine how well the results should relate to the searchterm by percentage.
 	 * With a relevance of 50% using a 8 letter search term, results are included that
 	 * need 4 transformations or less to get to the search term.
@@ -138,15 +150,21 @@ class Search {
 			return ($a < $b) ? -1 : 1;
 		});
 		
-		$i = 1;
+		$i = 0;
+		$j = 1;
+		\Debug::dump($this->offset);
 		foreach ($entry_scores as $entry_key => $score) {
+			$i++;
+			if (is_int($this->offset) && $this->offset >= $i) continue;
+			
+			
 			$results[$entry_key] = $this->data[$entry_key];
 			
 			
-			if (is_int($this->limit) && $i >= $this->limit) {
+			if (is_int($this->limit) && $j >= $this->limit) {
 				break;
 			} else {
-				$i++;
+				$j++;
 			}
 		}
 		
