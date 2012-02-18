@@ -20,14 +20,13 @@ class Search {
 	
 	protected $term = null;
 	protected $data = null;
-	protected $fields = null;
+	protected $fields = array();
 	protected $relevance = 75;
 	protected $limit = null;
 	
-	private $_normalized_data = array(); // normalized data that's being used to perform the actual algorithms on
 	private $_words = array(); 
 	
-	protected static function find($search_term = '') {
+	public static function find($search_term = '') {
 		return new static($search_term);
 	}
 	
@@ -60,7 +59,8 @@ class Search {
 		}
 		
 		$this->data = $data;
-		$this->_normalized_data = \Format::forge($data)->to_array();
+		// lets try and prevent the next step, because with big datasets, this could turn out to be pretty memory intensive
+		//$this->_normalized_data = \Format::forge($data)->to_array();
 		
 		return $this;
 	}
@@ -123,33 +123,36 @@ class Search {
 			return array(); // searching in nothing leads to nothing
 		}
 		
-		$search_term = $this->search_term;
+		$search_term = $this->term;
 		$search_term_length = strlen($search_term);
-		$relevance = $this->search_relevance;
+		$relevance = $this->relevance;
 		
 		$cost_limit = (int) ceil( ($search_term_length * (100-$relevance) ) / 100);
 		$search_term_minlen = $search_term_length - $cost_limit; // anything that's the cost limit longer that search term, will score too low for sure
 		$search_term_maxlen = $search_term_length + $cost_limit; // anything that's the cost limit longer that search term, will score too high for sure
 		
-		
 		$this->get_words($search_term_minlen, $search_term_maxlen);
+		$entry_scores = $this->get_entry_scores($cost_limit);
 		
-		$results = array(); // array of entry_key => score
-		foreach ($this->_words as $word => $entries) {
-			$score = $this->get_word_score($word, $search_term, $cost_limit + 1);
+		$results = array();
+		
+		uasort($entry_scores, function($a, $b){ // sort the entries by score
+			return ($a < $b) ? -1 : 1;
+		});
+		
+		$i = 1;
+		foreach ($entry_scores as $entry_key => $score) {
+			$results[$entry_key] = $this->data[$entry_key];
 			
-			if ($score <= $cost_limit) { // if this word scores within our cost limit
-				foreach ($entries as $entry) {
-					if (!isset($results[$entry['key']]) || (isset($results[$entry['key']]) && $results[$entry['key']] > $score)) { // if his entries score improved
-						$results[$entry['key']] = $score;
-					}
-				}
+			
+			if (is_int($this->limit) && $i >= $this->limit) {
+				break;
+			} else {
+				$i++;
 			}
 		}
 		
-		// TODO: return the resulting array in the right format and sorted by score
-		
-		return $this;
+		return $results;
 	}
 	
 	
@@ -162,17 +165,25 @@ class Search {
 	 * @return	void
 	 */
 	protected function get_words($min_length, $max_length) {
-		if (empty($this->_normalized_data) || empty($this->fields)) return array();
+		if (empty($this->data) || empty($this->fields)) return array();
 		
 		$this->_words = array();
 		
-		foreach ($this->_normalized_data as $entry_key => $entry) {
+		foreach ($this->data as $entry_key => $entry) {
+			if (!is_object($entry) && !is_array($entry)) continue; // if this is not either an array or an object, we won't be able to work with it
 			$words_in_entry = array();
 			
 			foreach ($this->fields as $field) {
-				if (!array_key_exists($field, $entry)) continue; // if the field is not set in this entry, there is not much to find!
+				if (is_array($entry)) { // if this entry is an array
+					if (!array_key_exists($field, $entry)) continue; // if the field is not set in this entry, there is not much to find!
+					
+					$field_contents = $entry[$field];
+				} else { // because of the if earlier statement, if it's not an array, it must be an object
+					if (!isset($entry->$field)) continue; // if the field is not set in this entry, there is not much to find!
+					
+					$field_contents = $entry->$field;
+				}
 				
-				$field_contents = $entry[$field];
 				$field_words = explode(' ', $field_contents);
 				
 				foreach ($field_words as $word) {
@@ -181,11 +192,13 @@ class Search {
 					if (isset($words_in_entry[$word])) continue; // if we already found this word in this entry, we don't need it again
 					
 					$word_length = strlen($word);
-					if ($word_length >= $min_length && $word_length <= $min_length) {
+					
+					if ($word_length >= $min_length && $word_length <= $max_length) {
 						if (!isset($words[$word])) $words[$word] = array(); // add the word if it doesnt exist yet
+						
+						$this->_words[$word][] = array('key' => $entry_key);
 					}
 					
-					$this->_words[$word][] = array('key' => $entry_key);
 				}
 				
 				$words_in_entry[$word] = true; // mark this word as done for this entry
@@ -196,7 +209,22 @@ class Search {
 	/**
 	 * Determine the scores per entry. With multiple matching words, the best score goes
 	 */
-	
+	protected function get_entry_scores($cost_limit = 0) {
+		$results = array(); // array of entry_key => score
+		foreach ($this->_words as $word => $entries) {
+			$score = static::get_word_score($word, $this->term, $cost_limit + 1);
+			
+			if ($score <= $cost_limit) { // if this word scores within our cost limit
+				foreach ($entries as $entry) {
+					if (!isset($results[$entry['key']]) || (isset($results[$entry['key']]) && $results[$entry['key']] > $score)) { // if his entries score improved
+						$results[$entry['key']] = $score;
+					}
+				}
+			}
+		}
+		
+		return $results;
+	}
 	
 	/**
     * Calculate the distance between $word and $search_term based on the Damerau-Levenshtein algorithm.
@@ -214,7 +242,7 @@ class Search {
     * @todo		reformat and comment to make sure everyone can see what does what and why
     */
 	protected static function get_word_score($word, $search_term, $cost_limit) {
-		if ($word == $searchterm) return 0;
+		if ($word == $search_term) return 0;
       
 		$len1 = strlen($word);
 		$len2 = strlen($search_term);
