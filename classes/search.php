@@ -14,8 +14,6 @@
 
 namespace Search;
 
-use FuelException;
-
 class Search {
 	
 	protected $term = null;
@@ -208,6 +206,9 @@ class Search {
 	
 	/**
 	 * Determine the scores per entry. With multiple matching words, the best score goes
+	 *
+	 * @param	int		$cost_limit		the score limit the entry should meet to be included in results
+	 * @return	array	arrays with entry keys and scores (entry_key => score)
 	 */
 	protected function get_entry_scores($cost_limit = 0) {
 		$results = array(); // array of entry_key => score
