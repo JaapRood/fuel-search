@@ -22,7 +22,7 @@ $found_products = Search::find('shampoo')
 	->execute();
 ```
 
-As data, an array with either objects or arrays are accepted. There are some other cool ways to tweak your results
+As data, an array with either objects or arrays is accepted. There are some other cool ways to tweak your results
 
 ```php
 $posts = Model_Post:find('all');
