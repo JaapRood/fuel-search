@@ -38,7 +38,7 @@ $found_posts = Search::find('foobar')
 ```
 
 # Known issues and stuff we're working on
-This class does not work properly with multiple word search terms. We're aware about this and are working on a solution. Also, because it looks at every single word, it's not that efficient on big text fields, we recommend using it on stuff like titles, names, etc.
+This class does not work properly with multiple word search terms. We're aware of this and are working on a solution. Also, because it looks at every single word, it's not that efficient on big text fields, we recommend using it on stuff like titles, names, etc.
 
 Next to improving results we've got heaps of ideas on stuff we could incorporate, like skipping common words, built in caching and searching in nested arrays / objects. We are really want to know what you think would be useful! We will love you if you whip it all up and do a pull request :)
 
