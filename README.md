@@ -32,6 +32,7 @@ $found_posts = Search::find('foobar')
 	->by('title', 'subtitle', 'slug')
 	->relevance(80) // this means the matched words in the data must be about 80% the same
 	->limit(10)	// let's limit the amount of results to 10
+	->offset(5) // offset the results, handy for pagination
 	->execute();
 
 ```
@@ -41,4 +42,4 @@ This class does not work properly with multiple word search terms. We're aware a
 
 Next to improving results we've got heaps of ideas on stuff we could incorporate, like skipping common words, built in caching and searching in nested arrays / objects. We are really want to know what you think would be useful! We will love you if you whip it all up and do a pull request :)
 
-We will use Github's issue tracker to keep track of all issues, bugs, new ideas, etc. 
+We will use Github's issue tracker to keep track of all issues,	bugs, new ideas, etc. 
