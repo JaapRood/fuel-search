@@ -155,7 +155,7 @@ class Search {
 
 		$i = 0;
 		$j = 1;
-		\Debug::dump($this->offset);
+		
 		foreach ($entry_scores as $entry_key => $score) {
 			$i++;
 			if (is_int($this->offset) && $this->offset >= $i) continue;
