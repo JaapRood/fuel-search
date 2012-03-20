@@ -133,13 +133,11 @@ class Search {
 			return array(); // searching in nothing leads to nothing
 		}
 
-		$relevance = $this->relevance;
-		$cost_limit = (int) ceil( ($search_term_length * (100-$relevance) ) / 100);
-
-		$min_len = $cost_limit;
-		$max_len = 0;
+		$total_cost_limit = 0;
 
 		foreach ($this->term as $term) {
+			$cost_limit = (int) ceil( (strlen($term) * (100-$this->relevance) ) / 100);
+			$total_cost_limit += $cost_limit;
 			$min_len = min($min_len, strlen($term) - $cost_limit); // anything that's the cost limit longer that search term, will score too low for sure
 			$max_len = max($max_len, strlen($term) + $cost_limit); // anything that's the cost limit longer that search term, will score too high for sure
 		}
@@ -153,22 +151,11 @@ class Search {
 			return ($a < $b) ? -1 : 1;
 		});
 
-		$i = 0;
-		$j = 1;
-		\Debug::dump($this->offset);
+		if (is_int($this->offset) && is_int($this->limit)) {
+			$entry_scores = array_slice($entry_scores, $this->offset, $this->limit, true);
+		}
 		foreach ($entry_scores as $entry_key => $score) {
-			$i++;
-			if (is_int($this->offset) && $this->offset >= $i) continue;
-
-
 			$results[$entry_key] = $this->data[$entry_key];
-
-
-			if (is_int($this->limit) && $j >= $this->limit) {
-				break;
-			} else {
-				$j++;
-			}
 		}
 
 		return $results;
@@ -229,17 +216,18 @@ class Search {
 	 * @param	int		$cost_limit		the score limit the entry should meet to be included in results
 	 * @return	array	arrays with entry keys and scores (entry_key => score)
 	 */
-	protected function get_entry_scores($cost_limit = 0) {
+	protected function get_entry_scores($total_cost_limit = 0) {
 		$results = array(); // array of entry_key => score
 		foreach ($this->_words as $word => $entries) {
 
 			//run score for each word in searchterm, lowest score wins.
-			$score = $cost_limit + 1; //init score
+			$score = 0; //init score
 			foreach ($terms as $term) {
-				$score = min(static::get_word_score($word, $term, $cost_limit + 1), $score);
+				$cost_limit = (int) ceil( (strlen($term) * (100-$this->relevance) ) / 100);
+				$score += static::get_word_score($word, $term, $cost_limit + 1);
 			}
 
-			if ($score <= $cost_limit) { // if this word scores within our cost limit
+			if ($score <= $total_cost_limit) { // if this word scores within our cost limit
 				foreach ($entries as $entry) {
 					if (!isset($results[$entry['key']]) || (isset($results[$entry['key']]) && $results[$entry['key']] > $score)) { // if his entries score improved
 						$results[$entry['key']] = $score;
