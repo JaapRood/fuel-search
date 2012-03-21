@@ -134,16 +134,18 @@ class Search {
 		}
 
 		$total_cost_limit = 0;
+		$min_len = false;
+		$max_len = false;
 
 		foreach ($this->term as $term) {
 			$cost_limit = (int) ceil( (strlen($term) * (100-$this->relevance) ) / 100);
 			$total_cost_limit += $cost_limit;
-			$min_len = min($min_len, strlen($term) - $cost_limit); // anything that's the cost limit longer that search term, will score too low for sure
-			$max_len = max($max_len, strlen($term) + $cost_limit); // anything that's the cost limit longer that search term, will score too high for sure
+			$min_len = $min_len ? min($min_len, strlen($term) - $cost_limit) : strlen($term) - $cost_limit; // anything that's the cost limit longer that search term, will score too low for sure
+			$max_len = $max_len ? max($max_len, strlen($term) + $cost_limit) : strlen($term) + $cost_limit; // anything that's the cost limit longer that search term, will score too high for sure
 		}
-
+		
 		$this->get_words($min_len, $max_len);
-		$entry_scores = $this->get_entry_scores($cost_limit);
+		$entry_scores = $this->get_entry_scores($total_cost_limit);
 
 		$results = array();
 
@@ -213,7 +215,7 @@ class Search {
 	/**
 	 * Determine the scores per entry. With multiple matching words, the best score goes
 	 *
-	 * @param	int		$cost_limit		the score limit the entry should meet to be included in results
+	 * @param	int		$total_cost_limit		the score limit the entry should meet to be included in results
 	 * @return	array	arrays with entry keys and scores (entry_key => score)
 	 */
 	protected function get_entry_scores($total_cost_limit = 0) {
@@ -222,7 +224,7 @@ class Search {
 
 			//run score for each word in searchterm, lowest score wins.
 			$score = 0; //init score
-			foreach ($terms as $term) {
+			foreach ($this->term as $term) {
 				$cost_limit = (int) ceil( (strlen($term) * (100-$this->relevance) ) / 100);
 				$score += static::get_word_score($word, $term, $cost_limit + 1);
 			}
