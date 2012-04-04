@@ -1,3 +1,5 @@
+# NOTE: @jeremybuff was kind enough to let us know that somehow the master branch is unstable. We must have screwed up with branching. Use the develop branch if you need search action today, next week stuff will be fixed (as i'm now busy with moving to the other end of the world :) )
+
 # Search for FuelPHP
 ### Search is a FuelPHP package to search through data
 
