@@ -132,7 +132,7 @@ class Search {
 		if (empty($this->data)) { // if there is no data to work with
 			return array(); // searching in nothing leads to nothing
 		}
-
+		$search_term_length = strlen($this->term[0]);
 		$relevance = $this->relevance;
 		$cost_limit = (int) ceil( ($search_term_length * (100-$relevance) ) / 100);
 
@@ -232,7 +232,7 @@ class Search {
 	protected function get_entry_scores($cost_limit = 0) {
 		$results = array(); // array of entry_key => score
 		foreach ($this->_words as $word => $entries) {
-
+			$terms = $this->term;
 			//run score for each word in searchterm, lowest score wins.
 			$score = $cost_limit + 1; //init score
 			foreach ($terms as $term) {
