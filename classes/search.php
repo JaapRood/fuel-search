@@ -152,10 +152,15 @@ class Search {
 		uasort($entry_scores, function($a, $b){ // sort the entries by score
 			return ($a < $b) ? -1 : 1;
 		});
-
-		if (is_int($this->offset) && is_int($this->limit)) {
-			$entry_scores = array_slice($entry_scores, $this->offset, $this->limit, true);
+		
+		$offset = is_int($this->offset) ? $this->offset : 0;
+		$limit = is_int($this->limit) ? $this->limit : null;
+		
+		
+		if ($offset > 0 ||  is_int($limit)) { // if we have a offset or limit
+			$entry_scores = array_slice($entry_scores, $offset, $limit, true);
 		}
+		
 		foreach ($entry_scores as $entry_key => $score) {
 			$results[$entry_key] = $this->data[$entry_key];
 		}
