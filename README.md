@@ -1,5 +1,3 @@
-# NOTE: @jeremybuff was kind enough to let us know that somehow the master branch is unstable. We must have screwed up with branching. Use the develop branch if you need search action today, next week stuff will be fixed (as i'm now busy with moving to the other end of the world :) )
-
 # Search for FuelPHP
 ### Search is a FuelPHP package to search through data
 
@@ -41,6 +39,8 @@ $found_posts = Search::find('foobar')
 
 # Known issues and stuff we're working on
 This class does not work properly with multiple word search terms. We're aware of this and are working on a solution. Also, because it looks at every single word, it's not that efficient on big text fields, we recommend using it on stuff like titles, names, etc.
+
+__Update:__ we've made improvements to the way multiple word search terms are handled in the master branch. It's still not quite where we'd like it to be, but it's a lot better than before.
 
 Next to improving results we've got heaps of ideas on stuff we could incorporate, like skipping common words, built in caching and searching in nested arrays / objects. We really want to know what you think would be useful! We will love you if you whip it all up and do a pull request :)
 
